@@ -41,7 +41,7 @@ DEFAULT_EXPORT = APP_DIR / "data" / "lessons_default.json"
 VALID_VIEWS = frozenset({"normal", "accordion", "genre", "timeline"})
 VIEW_LABELS = {
     "normal": "通常表示",
-    "accordion": "タイトルのみ表示（コンパクトに表示）",
+    "accordion": "タイトルのみ表示",
     "genre": "ジャンル別",
     "timeline": "月別タイムライン",
 }

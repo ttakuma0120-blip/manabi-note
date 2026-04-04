@@ -583,6 +583,53 @@ details.card-accordion[open] > .acc-summary::after {
   width: 100%;
 }
 
+/* タイトルのみ表示：枠・帯を細く、余白を詰めて一覧しやすく */
+.card.card-accordion {
+  margin-bottom: 0.48rem;
+  border-radius: 8px;
+  border-color: rgba(45, 58, 79, 0.85);
+}
+
+.card-accordion.genre-money,
+.card-accordion.genre-habit,
+.card-accordion.genre-mind,
+.card-accordion.genre-business,
+.card-accordion.genre-human,
+.card-accordion.genre-time,
+.card-accordion.genre-other {
+  border-left-width: 2px;
+}
+
+.card-accordion .acc-summary {
+  padding: 0.55rem 0.7rem;
+  gap: 0.28rem 0.4rem;
+}
+
+.card-accordion .acc-body,
+.card-accordion .card-actions {
+  padding: 0 0.7rem 0.65rem;
+}
+
+.card-accordion .content {
+  padding-top: 0.35rem;
+  font-size: 0.88rem;
+  line-height: 1.58;
+}
+
+.card-accordion .genre-badge {
+  font-size: 0.66rem;
+  padding: 0.1rem 0.38rem;
+}
+
+.card-accordion .acc-date {
+  font-size: 0.75rem;
+}
+
+.card-accordion .acc-title {
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
 /* コンパクト一覧 */
 .compact-list {
   list-style: none;
