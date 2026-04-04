@@ -38,14 +38,15 @@ APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR / "data" / "lessons.json"
 DEFAULT_EXPORT = APP_DIR / "data" / "lessons_default.json"
 
-VALID_VIEWS = frozenset({"normal", "accordion", "genre", "timeline", "compact"})
+VALID_VIEWS = frozenset({"normal", "accordion", "genre", "timeline"})
 VIEW_LABELS = {
-    "normal": "通常",
-    "accordion": "タイトルのみ（タップで本文）",
-    "genre": "ジャンル別（自動）",
+    "normal": "通常表示",
+    "accordion": "タイトルのみ表示（コンパクトに表示）",
+    "genre": "ジャンル別",
     "timeline": "月別タイムライン",
-    "compact": "一覧（コンパクト）",
 }
+# ツールバー表示順（sorted(VALID_VIEWS) に任せると並びが直感的でないため固定）
+VIEW_TOOLBAR_ORDER = ("normal", "accordion", "genre", "timeline")
 
 # ジャンル表示順（グループ表示用）
 GENRE_ORDER = [
@@ -326,7 +327,7 @@ def _render_index(*, read_only: bool) -> str:
         current_view=view,
         read_only=read_only,
         index_endpoint=index_endpoint,
-        valid_views=sorted(VALID_VIEWS),
+        valid_views=VIEW_TOOLBAR_ORDER,
         flash_message=request.args.get("msg"),
         flash_type=request.args.get("t", "ok"),
         month_label=month_label,

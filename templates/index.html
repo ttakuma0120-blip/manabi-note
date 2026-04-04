@@ -7,16 +7,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f1419" />
-  <title>しょうたさんの学びノート</title>
+  <title>学びノート</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
 <body>
   <header class="app-header">
-    <h1>しょうたさんの学びノート</h1>
-    {% if read_only %}
-    <p class="header-lead">閲覧用ページです。表示の切り替え・ジャンル色分け・検索が使えます。URLを共有すると他の人も同じ内容を見られます。</p>
-    <p class="header-sub"><a href="{{ url_for('manabi.manage_index', view=current_view) }}" class="header-link">編集（追加・削除）はこちら → {{ url_for('manabi.manage_index', view=current_view) }}</a></p>
-    {% else %}
+    <h1>学びノート</h1>
+    {% if not read_only %}
     <p class="header-lead">編集モード：追加・削除ができます。共有用URLは下記をそのまま他の人に送ってください。</p>
     <p class="header-sub"><a href="{{ url_for('manabi.public_index', view=current_view) }}" class="header-link">共有用ページを開く（閲覧のみ）— 開いた状態でアドレスバーのURLをコピーして共有</a></p>
     {% endif %}
@@ -28,7 +25,7 @@
     {% endif %}
 
     <nav class="view-toolbar" aria-label="表示モード">
-      {% for v in ['normal', 'accordion', 'genre', 'timeline', 'compact'] %}
+      {% for v in valid_views %}
       <a
         href="{{ url_for(index_endpoint, view=v) }}"
         class="view-chip {% if current_view == v %}active{% endif %}"
@@ -76,7 +73,7 @@
     {% if not lessons %}
     <div class="empty">
       {% if read_only %}
-      まだデータがありません。管理者が<a href="{{ url_for('manabi.manage_index') }}">編集ページ</a>から追加してください。
+      まだデータがありません。
       {% else %}
       まだデータがありません。上のフォームから追加するか、同梱の初期データをご利用ください。
       {% endif %}
@@ -198,36 +195,6 @@
       {% endfor %}
     </section>
     {% endfor %}
-    {% endif %}
-
-    {% if current_view == 'compact' and lessons %}
-    <ul class="compact-list">
-      {% for lesson in lessons %}
-      <li
-        class="compact-li filterable"
-        data-lesson-card
-        id="lesson-{{ lesson.id }}"
-        data-search="{{ search_blob(lesson)|e }}"
-      >
-        <details class="compact-details {{ lesson.genre_css }}">
-          <summary class="compact-summary">
-            <span class="compact-date">{{ lesson.date }}</span>
-            <span class="genre-badge genre-badge-sm">{{ lesson.genre }}</span>
-            <span class="compact-title">{{ lesson.title }}</span>
-          </summary>
-          <div class="content compact-body">{{ lesson.content }}</div>
-          {% if not read_only %}
-          <div class="card-actions">
-            <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
-              <input type="hidden" name="view" value="{{ current_view }}" />
-              <button type="submit" class="btn btn-ghost">削除</button>
-            </form>
-          </div>
-          {% endif %}
-        </details>
-      </li>
-      {% endfor %}
-    </ul>
     {% endif %}
   </main>
 
