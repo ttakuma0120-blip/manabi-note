@@ -1,0 +1,24 @@
+# 仮想環境
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# ローカル設定・秘密（リポジトリに含めない）
+.env
+.env.*
+!.env.example
+
+# 実行中に増える学びデータ（公開リポジトリに含めると内容が漏れる）
+data/lessons.json
+
+# エディタ
+.idea/
+.vscode/

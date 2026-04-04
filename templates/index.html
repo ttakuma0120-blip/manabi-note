@@ -1,0 +1,264 @@
+{% macro search_blob(lesson) -%}
+{{ (lesson.title ~ ' ' ~ lesson.content)|replace('\n', ' ')|replace('\r', '')|lower }}
+{%- endmacro %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1419" />
+  <title>しょうたさんの学びノート</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>しょうたさんの学びノート</h1>
+    {% if read_only %}
+    <p class="header-lead">閲覧用ページです。表示の切り替え・ジャンル色分け・検索が使えます。URLを共有すると他の人も同じ内容を見られます。</p>
+    <p class="header-sub"><a href="{{ url_for('manabi.manage_index', view=current_view) }}" class="header-link">編集（追加・削除）はこちら → {{ url_for('manabi.manage_index', view=current_view) }}</a></p>
+    {% else %}
+    <p class="header-lead">編集モード：追加・削除ができます。共有用URLは下記をそのまま他の人に送ってください。</p>
+    <p class="header-sub"><a href="{{ url_for('manabi.public_index', view=current_view) }}" class="header-link">共有用ページを開く（閲覧のみ）— 開いた状態でアドレスバーのURLをコピーして共有</a></p>
+    {% endif %}
+  </header>
+
+  <main>
+    {% if flash_message and not read_only %}
+    <div class="flash {{ flash_type }}">{{ flash_message }}</div>
+    {% endif %}
+
+    <nav class="view-toolbar" aria-label="表示モード">
+      {% for v in ['normal', 'accordion', 'genre', 'timeline', 'compact'] %}
+      <a
+        href="{{ url_for(index_endpoint, view=v) }}"
+        class="view-chip {% if current_view == v %}active{% endif %}"
+      >{{ view_labels.get(v, v) }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="search-row">
+      <label class="sr-only" for="filter-q">検索</label>
+      <input
+        type="search"
+        id="filter-q"
+        class="search-input"
+        placeholder="キーワードで絞り込み（タイトル・本文）"
+        autocomplete="off"
+        inputmode="search"
+      />
+    </div>
+
+    {% if not read_only %}
+    <section class="panel" id="add">
+      <h3>学びを追加</h3>
+      <form method="post" action="{{ url_for('manabi.manage_add') }}">
+        <input type="hidden" name="view" value="{{ current_view }}" />
+        <div class="field">
+          <label for="date">日付</label>
+          <input id="date" name="date" type="date" value="{{ default_date }}" required />
+        </div>
+        <div class="field">
+          <label for="title">タイトル（空欄なら本文から自動）</label>
+          <input id="title" name="title" type="text" placeholder="例：固定費を上げない理由" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="content">内容（本質をずらさないよう原文に近い形で）</label>
+          <textarea id="content" name="content" required placeholder="LINEから抜き出した学びの本文を貼り付け"></textarea>
+          <p class="hint">ジャンルはタイトルと本文から自動で振り分け、色分けされます。</p>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">追加する</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <p class="stats">全 {{ count }} 件・表示: {{ view_labels.get(current_view, current_view) }}</p>
+
+    {% if not lessons %}
+    <div class="empty">
+      {% if read_only %}
+      まだデータがありません。管理者が<a href="{{ url_for('manabi.manage_index') }}">編集ページ</a>から追加してください。
+      {% else %}
+      まだデータがありません。上のフォームから追加するか、同梱の初期データをご利用ください。
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if current_view == 'normal' and lessons %}
+    {% for lesson in lessons %}
+    <article
+      class="card filterable {{ lesson.genre_css }}"
+      data-lesson-card
+      id="lesson-{{ lesson.id }}"
+      data-search="{{ search_blob(lesson)|e }}"
+    >
+      <div class="meta">
+        <span class="date">{{ lesson.date }}</span>
+        <span class="genre-badge">{{ lesson.genre }}</span>
+      </div>
+      <h2>{{ lesson.title }}</h2>
+      <div class="content">{{ lesson.content }}</div>
+      {% if not read_only %}
+      <div class="card-actions">
+        <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
+          <input type="hidden" name="view" value="{{ current_view }}" />
+          <button type="submit" class="btn btn-ghost">削除</button>
+        </form>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+    {% endif %}
+
+    {% if current_view == 'accordion' and lessons %}
+    {% for lesson in lessons %}
+    <details
+      class="card card-accordion filterable {{ lesson.genre_css }}"
+      data-lesson-card
+      id="lesson-{{ lesson.id }}"
+      data-search="{{ search_blob(lesson)|e }}"
+    >
+      <summary class="acc-summary">
+        <span class="acc-date">{{ lesson.date }}</span>
+        <span class="genre-badge">{{ lesson.genre }}</span>
+        <span class="acc-title">{{ lesson.title }}</span>
+        <span class="acc-hint">タップで全文</span>
+      </summary>
+      <div class="content acc-body">{{ lesson.content }}</div>
+      {% if not read_only %}
+      <div class="card-actions">
+        <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
+          <input type="hidden" name="view" value="{{ current_view }}" />
+          <button type="submit" class="btn btn-ghost">削除</button>
+        </form>
+      </div>
+      {% endif %}
+    </details>
+    {% endfor %}
+    {% endif %}
+
+    {% if current_view == 'genre' and lessons %}
+    {% for genre_name, items in genre_groups %}
+    <section class="genre-block">
+      <h3 class="genre-heading {{ genre_css_class(genre_name) }}">
+        <span class="genre-heading-label">{{ genre_name }}</span>
+        <span class="genre-count">{{ items|length }} 件</span>
+      </h3>
+      {% for lesson in items %}
+      <article
+        class="card card-nested filterable {{ lesson.genre_css }}"
+        id="lesson-{{ lesson.id }}"
+        data-lesson-card
+        data-search="{{ search_blob(lesson)|e }}"
+      >
+        <div class="meta">
+          <span class="date">{{ lesson.date }}</span>
+        </div>
+        <h2>{{ lesson.title }}</h2>
+        <div class="content">{{ lesson.content }}</div>
+        {% if not read_only %}
+        <div class="card-actions">
+          <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
+            <input type="hidden" name="view" value="{{ current_view }}" />
+            <button type="submit" class="btn btn-ghost">削除</button>
+          </form>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </section>
+    {% endfor %}
+    {% endif %}
+
+    {% if current_view == 'timeline' and lessons %}
+    {% for ym, items in timeline_groups %}
+    <section class="timeline-block">
+      <h3 class="timeline-heading">{{ month_label(ym) }} <span class="genre-count">{{ items|length }} 件</span></h3>
+      {% for lesson in items %}
+      <article
+        class="card card-nested filterable {{ lesson.genre_css }}"
+        id="lesson-{{ lesson.id }}"
+        data-lesson-card
+        data-search="{{ search_blob(lesson)|e }}"
+      >
+        <div class="meta">
+          <span class="date">{{ lesson.date }}</span>
+          <span class="genre-badge">{{ lesson.genre }}</span>
+        </div>
+        <h2>{{ lesson.title }}</h2>
+        <div class="content">{{ lesson.content }}</div>
+        {% if not read_only %}
+        <div class="card-actions">
+          <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
+            <input type="hidden" name="view" value="{{ current_view }}" />
+            <button type="submit" class="btn btn-ghost">削除</button>
+          </form>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </section>
+    {% endfor %}
+    {% endif %}
+
+    {% if current_view == 'compact' and lessons %}
+    <ul class="compact-list">
+      {% for lesson in lessons %}
+      <li
+        class="compact-li filterable"
+        data-lesson-card
+        id="lesson-{{ lesson.id }}"
+        data-search="{{ search_blob(lesson)|e }}"
+      >
+        <details class="compact-details {{ lesson.genre_css }}">
+          <summary class="compact-summary">
+            <span class="compact-date">{{ lesson.date }}</span>
+            <span class="genre-badge genre-badge-sm">{{ lesson.genre }}</span>
+            <span class="compact-title">{{ lesson.title }}</span>
+          </summary>
+          <div class="content compact-body">{{ lesson.content }}</div>
+          {% if not read_only %}
+          <div class="card-actions">
+            <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
+              <input type="hidden" name="view" value="{{ current_view }}" />
+              <button type="submit" class="btn btn-ghost">削除</button>
+            </form>
+          </div>
+          {% endif %}
+        </details>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </main>
+
+  {% if not read_only %}
+  <div class="fab-wrap" aria-hidden="true">
+    <a href="#add" class="btn btn-primary" style="text-decoration:none">＋ 追加フォームへ</a>
+  </div>
+  {% endif %}
+
+  <script>
+    (function () {
+      var input = document.getElementById("filter-q");
+      if (!input) return;
+      function norm(s) { return (s || "").trim().toLowerCase(); }
+      function apply() {
+        var q = norm(input.value);
+        document.querySelectorAll("[data-lesson-card]").forEach(function (el) {
+          var hay = norm(el.getAttribute("data-search")) || "";
+          var show = !q || hay.indexOf(q) !== -1;
+          el.style.display = show ? "" : "none";
+        });
+        document.querySelectorAll(".genre-block, .timeline-block").forEach(function (block) {
+          var any = false;
+          block.querySelectorAll("[data-lesson-card]").forEach(function (c) {
+            if (c.style.display !== "none") any = true;
+          });
+          block.style.display = !q || any ? "" : "none";
+        });
+      }
+      input.addEventListener("input", apply);
+    })();
+  </script>
+</body>
+</html>
