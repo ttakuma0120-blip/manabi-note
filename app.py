@@ -16,6 +16,11 @@ URL:
   （秘密パス利用時）/manabi_note/<秘密>/api/lessons  同上
 
 LINE連携: LINE_CHANNEL_SECRET 設定後、Webhook に https://（公開URL）/webhook/line
+
+永続化:
+  未設定 … data/lessons.json（ローカル向け）
+  DATABASE_URL … PostgreSQL に保存（Render 等の一時ディスクで JSON が消える問題の対策）
+  Render では Postgres を作成し、同じリージョンの Web サービスに接続すると URL が渡る。
 """
 
 from __future__ import annotations
@@ -200,6 +205,93 @@ def manabi_blueprint_url_prefix() -> str:
 manabi_bp = Blueprint("manabi", __name__, url_prefix=manabi_blueprint_url_prefix())
 
 
+def _postgres_dsn() -> str | None:
+    raw = os.environ.get("DATABASE_URL", "").strip()
+    if not raw:
+        return None
+    if raw.startswith("postgres://"):
+        return "postgresql://" + raw[len("postgres://") :]
+    return raw
+
+
+def _lesson_payload_to_dict(payload: object) -> dict:
+    if isinstance(payload, dict):
+        return dict(payload)
+    if isinstance(payload, str):
+        d = json.loads(payload)
+        return d if isinstance(d, dict) else {}
+    return {}
+
+
+def _ensure_lessons_table(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS lessons (
+            id TEXT PRIMARY KEY,
+            payload JSONB NOT NULL
+        );
+        """
+    )
+
+
+def _load_lessons_db() -> list[dict]:
+    import psycopg2
+    from psycopg2.extras import Json
+
+    dsn = _postgres_dsn()
+    assert dsn
+    conn = psycopg2.connect(dsn)
+    try:
+        with conn.cursor() as cur:
+            _ensure_lessons_table(cur)
+            cur.execute(
+                """
+                SELECT payload FROM lessons
+                ORDER BY payload->>'date' DESC NULLS LAST, id DESC
+                """
+            )
+            rows = [_lesson_payload_to_dict(t[0]) for t in cur.fetchall()]
+            if not rows and DEFAULT_EXPORT.exists():
+                seed_raw = json.loads(DEFAULT_EXPORT.read_text(encoding="utf-8"))
+                if isinstance(seed_raw, list) and seed_raw:
+                    for r in seed_raw:
+                        if not isinstance(r, dict) or not r.get("id"):
+                            continue
+                        cur.execute(
+                            "INSERT INTO lessons (id, payload) VALUES (%s, %s)",
+                            (r["id"], Json(r)),
+                        )
+                    conn.commit()
+                    return sort_lessons([dict(x) for x in seed_raw if isinstance(x, dict)])
+        conn.commit()
+        return rows
+    finally:
+        conn.close()
+
+
+def _save_lessons_db(rows: list[dict]) -> None:
+    import psycopg2
+    from psycopg2.extras import Json
+
+    dsn = _postgres_dsn()
+    assert dsn
+    conn = psycopg2.connect(dsn)
+    try:
+        with conn.cursor() as cur:
+            _ensure_lessons_table(cur)
+            cur.execute("DELETE FROM lessons")
+            for r in rows:
+                if not isinstance(r, dict) or not r.get("id"):
+                    continue
+                cur.execute(
+                    "INSERT INTO lessons (id, payload) VALUES (%s, %s)",
+                    (r["id"], Json(r)),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def ensure_data_dir() -> None:
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not DATA_PATH.exists() and DEFAULT_EXPORT.exists():
@@ -207,6 +299,8 @@ def ensure_data_dir() -> None:
 
 
 def load_lessons() -> list[dict]:
+    if _postgres_dsn():
+        return _load_lessons_db()
     ensure_data_dir()
     raw = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
@@ -215,6 +309,9 @@ def load_lessons() -> list[dict]:
 
 
 def save_lessons(rows: list[dict]) -> None:
+    if _postgres_dsn():
+        _save_lessons_db(rows)
+        return
     ensure_data_dir()
     DATA_PATH.write_text(
         json.dumps(rows, ensure_ascii=False, indent=2),
