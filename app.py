@@ -552,12 +552,28 @@ def _line_verify_signature(body: bytes, signature: str, secret: str) -> bool:
 
 
 def _line_allowed_user(source: dict) -> bool:
+    """
+    LINE_ALLOWED_USER_IDS 未設定なら全員許可。
+    設定時は userId がリストに含まれる場合のみ許可。
+    グループで userId が付かないイベントは許可しない（仕様上ほ��付く）。
+    """
     raw = os.environ.get("LINE_ALLOWED_USER_IDS", "").strip()
     if not raw:
         return True
     allowed = {x.strip() for x in raw.split(",") if x.strip()}
     uid = (source or {}).get("userId")
-    return uid in allowed if uid else False
+    if not uid:
+        return False
+    return uid in allowed
+
+
+def _line_webhook_debug(msg: str) -> None:
+    if os.environ.get("LINE_WEBHOOK_DEBUG", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        print(f"[line-webhook] {msg}", file=sys.stderr, flush=True)
 
 
 def _normalize_lesson_content(text: str) -> str:
@@ -601,27 +617,46 @@ def webhook_line():
     events = payload.get("events") or []
     added = 0
     skipped_duplicate = 0
+    skip_counts = {
+        "not_message": 0,
+        "not_text": 0,
+        "user_filtered": 0,
+        "too_short": 0,
+        "bad_format": 0,
+    }
     rows = load_lessons()
     content_keys = _existing_content_keys(rows)
 
     for ev in events:
         if ev.get("type") != "message":
+            skip_counts["not_message"] += 1
             continue
         msg = ev.get("message") or {}
         if msg.get("type") != "text":
+            skip_counts["not_text"] += 1
             continue
         source = ev.get("source") or {}
         if not _line_allowed_user(source):
+            skip_counts["user_filtered"] += 1
+            _line_webhook_debug(
+                f"user_filtered source_type={source.get('type')} has_uid={bool(source.get('userId'))}"
+            )
             continue
         text = (msg.get("text") or "").strip()
         if len(text) < 3:
+            skip_counts["too_short"] += 1
             continue
         if not is_standard_talk_format({"content": text}):
+            skip_counts["bad_format"] += 1
+            _line_webhook_debug(
+                f"bad_format len={len(text)} has_pattern={('今日は「' in text and 'についてお話します' in text)}"
+            )
             continue
 
         norm = _normalize_lesson_content(text)
         if norm in content_keys:
             skipped_duplicate += 1
+            _line_webhook_debug(f"duplicate len={len(norm)}")
             continue
 
         ts = ev.get("timestamp")
@@ -648,6 +683,7 @@ def webhook_line():
         )
         content_keys.add(norm)
         added += 1
+        _line_webhook_debug(f"imported id={new_id} title={title[:40]!r}")
 
     if added:
         save_lessons(rows)
@@ -655,7 +691,13 @@ def webhook_line():
     from flask import jsonify
 
     return jsonify(
-        {"ok": True, "imported": added, "skipped_duplicate": skipped_duplicate}
+        {
+            "ok": True,
+            "imported": added,
+            "skipped_duplicate": skipped_duplicate,
+            "skip_breakdown": skip_counts,
+            "events_total": len(events),
+        }
     )
 
 
