@@ -28,6 +28,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import importlib
 import json
 import os
 import re
@@ -234,9 +235,15 @@ def _ensure_lessons_table(cur) -> None:
     )
 
 
+def _psycopg2_connect_and_json():
+    """psycopg2 は本番 DB 用の任意依存。動的 import で型チェッカーの未解決警告を避ける。"""
+    pg = importlib.import_module("psycopg2")
+    Json = importlib.import_module("psycopg2.extras").Json
+    return pg, Json
+
+
 def _load_lessons_db() -> list[dict]:
-    import psycopg2
-    from psycopg2.extras import Json
+    psycopg2, Json = _psycopg2_connect_and_json()
 
     dsn = _postgres_dsn()
     assert dsn
@@ -270,8 +277,7 @@ def _load_lessons_db() -> list[dict]:
 
 
 def _save_lessons_db(rows: list[dict]) -> None:
-    import psycopg2
-    from psycopg2.extras import Json
+    psycopg2, Json = _psycopg2_connect_and_json()
 
     dsn = _postgres_dsn()
     assert dsn
