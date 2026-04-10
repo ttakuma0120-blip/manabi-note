@@ -41,6 +41,8 @@ from pathlib import Path
 from flask import Blueprint, Flask, Response, redirect, render_template, request, url_for
 from markupsafe import Markup, escape
 
+from filter_lessons import is_standard_talk_format
+
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR / "data" / "lessons.json"
 DEFAULT_EXPORT = APP_DIR / "data" / "lessons_default.json"
@@ -564,7 +566,9 @@ def webhook_line():
     LINE Messaging API からのコールバック。
     - LINE_CHANNEL_SECRET 必須
     - LINE_ALLOWED_USER_IDS に userId をカンマ区切りで入れると、その送信者のみ取り込み
-    - メッセージの投稿日時は可能ならイベントの timestamp から JST 日付を推定
+    - 保存は is_standard_talk_format 通過時のみ（「今日は「…」についてお話します」形式・filter_lessons と同じ基準）
+    - グループトークでも公式アカウントを招待すれば同様（送信者 userId が取れること）
+    - 日付は timestamp から UTC 基準の日付
     """
     secret = os.environ.get("LINE_CHANNEL_SECRET", "").strip()
     if not secret:
@@ -598,6 +602,8 @@ def webhook_line():
             continue
         text = (msg.get("text") or "").strip()
         if len(text) < 3:
+            continue
+        if not is_standard_talk_format({"content": text}):
             continue
 
         ts = ev.get("timestamp")
