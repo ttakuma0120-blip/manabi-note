@@ -560,6 +560,17 @@ def _line_allowed_user(source: dict) -> bool:
     return uid in allowed if uid else False
 
 
+def _normalize_lesson_content(text: str) -> str:
+    """重複判定用。改行の統一と前後空白の除去のみ。"""
+    if not isinstance(text, str):
+        return ""
+    return text.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _existing_content_keys(rows: list[dict]) -> set[str]:
+    return {_normalize_lesson_content(r.get("content") or "") for r in rows if r.get("content")}
+
+
 @app.post("/webhook/line")
 def webhook_line():
     """
@@ -589,7 +600,9 @@ def webhook_line():
 
     events = payload.get("events") or []
     added = 0
+    skipped_duplicate = 0
     rows = load_lessons()
+    content_keys = _existing_content_keys(rows)
 
     for ev in events:
         if ev.get("type") != "message":
@@ -604,6 +617,11 @@ def webhook_line():
         if len(text) < 3:
             continue
         if not is_standard_talk_format({"content": text}):
+            continue
+
+        norm = _normalize_lesson_content(text)
+        if norm in content_keys:
+            skipped_duplicate += 1
             continue
 
         ts = ev.get("timestamp")
@@ -628,6 +646,7 @@ def webhook_line():
                 "line_message_id": msg.get("id"),
             }
         )
+        content_keys.add(norm)
         added += 1
 
     if added:
@@ -635,7 +654,9 @@ def webhook_line():
 
     from flask import jsonify
 
-    return jsonify({"ok": True, "imported": added})
+    return jsonify(
+        {"ok": True, "imported": added, "skipped_duplicate": skipped_duplicate}
+    )
 
 
 if __name__ == "__main__":
