@@ -555,7 +555,7 @@ def _line_allowed_user(source: dict) -> bool:
     """
     LINE_ALLOWED_USER_IDS 未設定なら全員許可。
     設定時は userId がリストに含まれる場合のみ許可。
-    グループで userId が付かないイベントは許可しない（仕様上ほ��付く）。
+    グループで userId が付かないイベントは、ALLOWED 指定時は許可しない（通常は userId が付く）。
     """
     raw = os.environ.get("LINE_ALLOWED_USER_IDS", "").strip()
     if not raw:
