@@ -93,7 +93,7 @@
         <span class="genre-badge">{{ lesson.genre }}</span>
       </div>
       <h2>{{ lesson.title }}</h2>
-      <div class="content">{{ lesson.content }}</div>
+      <div class="content">{{ lesson.content | linkify_urls }}</div>
       {% if not read_only %}
       <div class="card-actions">
         <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
@@ -120,7 +120,7 @@
         <span class="acc-title">{{ lesson.title }}</span>
         <span class="acc-hint">タップで全文</span>
       </summary>
-      <div class="content acc-body">{{ lesson.content }}</div>
+      <div class="content acc-body">{{ lesson.content | linkify_urls }}</div>
       {% if not read_only %}
       <div class="card-actions">
         <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
@@ -151,7 +151,7 @@
           <span class="date">{{ lesson.date }}</span>
         </div>
         <h2>{{ lesson.title }}</h2>
-        <div class="content">{{ lesson.content }}</div>
+        <div class="content">{{ lesson.content | linkify_urls }}</div>
         {% if not read_only %}
         <div class="card-actions">
           <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">
@@ -182,7 +182,7 @@
           <span class="genre-badge">{{ lesson.genre }}</span>
         </div>
         <h2>{{ lesson.title }}</h2>
-        <div class="content">{{ lesson.content }}</div>
+        <div class="content">{{ lesson.content | linkify_urls }}</div>
         {% if not read_only %}
         <div class="card-actions">
           <form method="post" action="{{ url_for('manabi.manage_delete', lesson_id=lesson.id) }}" onsubmit="return confirm('この学びを削除しますか？');">

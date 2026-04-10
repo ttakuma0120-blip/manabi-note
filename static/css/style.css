@@ -118,6 +118,17 @@ main {
   word-break: break-word;
 }
 
+.card .content a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.card .content a:hover {
+  color: #7eb8f0;
+}
+
 .card-actions {
   margin-top: 0.75rem;
   display: flex;

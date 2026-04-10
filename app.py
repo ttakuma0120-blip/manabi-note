@@ -39,6 +39,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from flask import Blueprint, Flask, Response, redirect, render_template, request, url_for
+from markupsafe import Markup, escape
 
 APP_DIR = Path(__file__).resolve().parent
 DATA_PATH = APP_DIR / "data" / "lessons.json"
@@ -183,7 +184,32 @@ def genre_css_class(genre_label: str) -> str:
     return GENRE_CSS_CLASSES.get(genre_label, "genre-other")
 
 
+# 本文中の http(s):// をクリック可能に（HTMLエスケープ後に <a> を差し込む）
+_URL_IN_TEXT = re.compile(r"https?://[^\s<>\u200b\"]+", re.IGNORECASE)
+
+
+def linkify_urls(text: str) -> Markup:
+    if not isinstance(text, str) or not text:
+        return Markup("")
+    parts: list[str] = []
+    idx = 0
+    for m in _URL_IN_TEXT.finditer(text):
+        parts.append(str(escape(text[idx : m.start()])))
+        raw = m.group(0)
+        url = raw.rstrip(").,;:!?]}'\"」』、。")
+        eu = escape(url)
+        parts.append(
+            f'<a href="{eu}" target="_blank" rel="noopener noreferrer">{eu}</a>'
+        )
+        if len(url) < len(raw):
+            parts.append(str(escape(raw[len(url) :])))
+        idx = m.end()
+    parts.append(str(escape(text[idx:])))
+    return Markup("".join(parts))
+
+
 app = Flask(__name__)
+app.jinja_env.filters["linkify_urls"] = linkify_urls
 app.secret_key = "change-me-in-production-" + uuid.uuid4().hex
 
 _SECRET_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
